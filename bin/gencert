@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# Local constants
+INSTALL_DIR='/usr/local/var/ssl' # Current directory
+DAYS="3650" # 10 year
+
+# Script accepts a single argument, the FQDN for the cert
+DOMAIN="$1"
+if [ -z "$DOMAIN" ]; then
+    echo "Usage: $(basename $0) <domain>"
+    exit 11
+fi
+
+# Certificate details
+subj="
+C=MX
+ST=Yucatan
+O=PeterCP Software
+localityName=Merida
+commonName=$DOMAIN
+organizationalUnitName=Local Development
+emailAddress=pacp95@gmail.com
+"
+
+# Generate the key and certificate in a single step
+openssl req \
+    -x509 \
+    -nodes \
+    -days "$DAYS" \
+    -newkey rsa:2048 \
+    -subj "$(echo -n "$subj" | tr "\n" "/")" \
+    -keyout "$INSTALL_DIR/$DOMAIN.key" \
+    -out "$INSTALL_DIR/$DOMAIN.crt"
