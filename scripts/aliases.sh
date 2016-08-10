@@ -3,9 +3,9 @@ alias grep="grep --color=auto"
 
 # Add shorcut aliases for 'ls' command.
 alias ls="ls -GFh"
-alias la="ls -a"
+alias la="ls -A"
 alias l="ls -l"
-alias ll="ls -al"
+alias ll="la -l"
 alias lg="ll | grep"
 lm(){
     ll "$@" | more
