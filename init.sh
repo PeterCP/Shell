@@ -3,7 +3,7 @@
 #     source "$HOME/.rvm/scripts/rvm"
 
 # Modify prompt.
-export PS1="\[\033[36m\]\u\[\033[m\]@\[\033[32m\]\h:\[\033[33;1m\]\W\[\033[m\]\$ "
+export PS1="\[\033[32m\]\u\[\033[m\]@\[\033[33;1m\]\h\[\033[m\]:\[\033[36m\]\W\[\033[m\]$ "
 export LSCOLORS=ExFxBxDxCxegedabagacad
 export CLICOLOR=1
 
