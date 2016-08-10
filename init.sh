@@ -2,6 +2,11 @@
 # [[ -s "$HOME/.rvm/scripts/rvm" ]] &&
 #     source "$HOME/.rvm/scripts/rvm"
 
+# Modify prompt.
+export PS1="\[\033[36m\]\u\[\033[m\]@\[\033[32m\]\h:\[\033[33;1m\]\W\[\033[m\]\$ "
+export LSCOLORS=ExFxBxDxCxegedabagacad
+export CLICOLOR=1
+
 # Export workspace home variable
 export WORKSPACE="$HOME/Desktop/workspace"
 
@@ -9,8 +14,8 @@ export WORKSPACE="$HOME/Desktop/workspace"
 
 # Helper to load scripts
 _load_script() {
-    local _dir="$HOME/.bash/scripts"
-    source "$_dir/$1"
+    local DIR="$HOME/.bash/scripts"
+    source "$DIR/$1"
 }
 
 _load_script "cd.sh"

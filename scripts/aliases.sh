@@ -3,14 +3,19 @@ alias ls="ls -GFh"
 alias la="ls -a"
 alias ll="ls -l"
 alias lal="ls -al"
+alias lg="lal | grep"
 lm(){
-	ls -al "$@" | more
+    lal "$@" | more
 }
+
+# Alias for 'brew services'
+alias service="brew services"
+
 # Alias for digging the external IP.
 alias externalip="dig +short myip.opendns.com @resolver1.opendns.com"
 
-# Alias shorcut for 'python manage.py'
-pymanage() {
+# Alias for 'python manage.py'
+pyman() {
     if [[ "$PYMANAGE_FILE" ]]; then
         python "$PYMANAGE_FILE" "$@"
     else

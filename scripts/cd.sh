@@ -1,25 +1,32 @@
-# Wrap cd around pushd and popd
-function cd {
-    # typing just `cd` will take you $HOME ;)
+#!/bin/bash
+
+##
+# cd
+#
+# Replaces builtin cd with a wrapper around pushd and popd.
+##
+
+cd() {
+    # Typing just `cd` will take you to $HOME
     if [ "$1" == "" ]; then
         pushd "$HOME" > /dev/null
 
-    # use `cd -` to visit previous directory
+    # Use `cd -` to visit the previous directory
     elif [ "$1" == "-" ]; then
         pushd $OLDPWD > /dev/null
 
-    # use `_cd -n` to go n directories back in history
+    # Use `_cd -n` to go n directories back in history
     elif [[ "$1" =~ ^-[0-9]+$ ]]; then
         for i in `seq 1 ${1/-/}`; do
             popd > /dev/null
         done
 
-    # use `cd -- <path>` if your path begins with a dash
+    # Use `cd -- <path>` if your path begins with a dash
     elif [ "$1" == "--" ]; then
         shift
         pushd -- "$@" > /dev/null
 
-    # basic case: move to a dir and add it to history
+    # Default case: move to a dir and add it to history
     else
         pushd "$@" > /dev/null
     fi
