@@ -193,7 +193,7 @@ ngx_sites() {
 
 ngx_reload() {
     read -p "Would you like to reload the Nginx configuration now? (Y/n) " reload
-    [[ "$reload" != "n" && "$reload" != "N" ]] && nginx -s reload
+    [[ "$reload" != "n" && "$reload" != "N" ]] && sudo nginx -s reload
 }
 
 ngx_error() {
