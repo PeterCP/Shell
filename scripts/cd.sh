@@ -6,7 +6,7 @@
 # Replaces builtin cd with a wrapper around pushd and popd.
 ##
 
-cd() {
+pushcd() {
     # Typing just `cd` will take you to $HOME
     if [ "$1" == "" ]; then
         pushd "$HOME" > /dev/null
@@ -31,3 +31,6 @@ cd() {
         pushd "$@" > /dev/null
     fi
 }
+
+alias cd="pushcd"
+
