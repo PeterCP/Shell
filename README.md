@@ -2,7 +2,7 @@
 
 ### Installation
 
-Clone into `$HOME` and link `bashrc`.
+Clone into `$HOME` and source `init.sh`.
 
 ```bash
 # cd into home directory
@@ -11,13 +11,10 @@ cd
 # Clone into ~/.bash
 git clone git@github.com:PeterCP/Shell.git .bash
 
-# Optional: backup original .bashrc
-mv .bashrc .bash/bashrc.original
-
-# Link .bashrc
-ln -s .bash/bashrc .bashrc
+# Add init script to .bashrc
+echo '[[ "$HOME/.bashrc/init.sh" ]] && source "$HOME/.bash/init.sh"' >> .bashrc
 ```
 
-### Shell theme
+### Shell theme (Optional)
 
 Install [Material Shell Theme](https://github.com/carloscuesta/materialshell)

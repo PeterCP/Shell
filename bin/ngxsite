@@ -1,231 +1,281 @@
-#!/bin/bash
+#!/usr/bin/ruby
 
-##
-#  File:
-#    ngxsite
-#  Description:
-#    Provides a basic script to automate enabling, disabling, adding and
-#    removing websites found in the default configuration directories:
-#      /etc/nginx/sites-available and /etc/nginx/sites-enabled
-#    For easy access to this script, copy it into the directory:
-#      /usr/local/sbin
-#    Run this script without any arguments or with 'h' or 'help' to see a
-#    basic help dialog displaying all options.
-#    
-#    Made by PeterCP. Based on the original made by Michael Lustfield.
-##
+# Variables
+$file_ext = '.conf' # File extension used in sites-* directories.
+$conf_dir = '/usr/local/etc/nginx' # Path to nginx configuration directory.
+$sites_available = "#{$conf_dir}/sites-available" # Path to sites-available.
+$sites_enabled = "#{$conf_dir}/sites-enabled" # Path to sites-enabled.
 
-# Copyright (C) 2010 Michael Lustfield <mtecknology@ubuntu.com>
+require 'fileutils'
 
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
-# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-# SUCH DAMAGE.
+class String
+    # Output formatters.
+    def bold;         "\e[1m#{self}\e[0m" end
+    def underlined;   "\e[4m#{self}\e[0m" end
+    def red;          "\e[31m#{self}\e[0m" end
+    def green;        "\e[32m#{self}\e[0m" end
+    def yellow;       "\e[33m#{self}\e[0m" end
+    def cyan;         "\e[36m#{self}\e[0m" end
 
-##
-# Default Settings
-##
+    # Integer validator.
+    def is_i?
+        return self =~ /^[0-9]+$/ ? true : false
+    end
 
-NGINX_CONF_FILE="$(awk -F= -v RS=' ' '/conf-path/ {print $2}' <<< $(nginx -V 2>&1))"
-NGINX_CONF_DIR="${NGINX_CONF_FILE%/*}"
-NGINX_SITES_AVAILABLE="$NGINX_CONF_DIR/sites-available"
-NGINX_SITES_ENABLED="$NGINX_CONF_DIR/sites-enabled"
-SELECTED_SITE="$2"
+    # Strip extension.
+    def strip_ext
+        return File.basename(self, File.extname(self))
+    end
+end
 
-##
-# Script Functions
-##
+class Site
+    # Get a list of all sites available.
+    def self.all
+        result = []
+        Dir.glob("#{$sites_available}/*#{$file_ext}").each do |site_path|
+            result << Site.from_file(site_path)
+        end
+        return result
+    end
 
-ngx_enable_site() {
-    [[ ! "$SELECTED_SITE" ]] &&
-        ngx_select_site "not_enabled"
+    # Return true if a site exists with that name and false otherwise.
+    def self.exist?(name)
+        self.all.each do |site|
+            return true if name == site.name
+        end
+        return false
+    end
 
-    [[ ! -e "$NGINX_SITES_AVAILABLE/$SELECTED_SITE" ]] &&
-        ngx_error "Site does not appear to exist."
-    [[ -e "$NGINX_SITES_ENABLED/$SELECTED_SITE" ]] &&
-        ngx_error "Site appears to be enabled already."
+    # Create a new site object from its path.
+    def self.from_file(path)
+        return Site.new({
+            path: File.expand_path(path),
+            filename: File.basename(path),
+            name: path.strip_ext
+        })
+    end
 
-    ln -sf "$NGINX_SITES_AVAILABLE/$SELECTED_SITE" "$NGINX_SITES_ENABLED/$SELECTED_SITE"
-    echo "Site '$SELECTED_SITE' enabled."
-    ngx_reload
-}
+    # Create a new site object from its name.
+    def self.from_name(name)
+        basename = "#{name}#{$file_ext}"
+        return Site.new({
+            path: "#{$sites_available}/#{basename}",
+            filename: basename,
+            name: name
+        })
+    end
 
-ngx_disable_site() {
-    [[ ! "$SELECTED_SITE" ]] &&
-        ngx_select_site "is_enabled"
+    attr_reader :path, :filename, :name
 
-    [[ ! -e "$NGINX_SITES_ENABLED/$SELECTED_SITE" && ! -L "$NGINX_SITES_ENABLED/$SELECTED_SITE" ]] &&
-        ngx_error "Site does not appear to be enabled."
-    if [[ ! -e "$NGINX_SITES_AVAILABLE/$SELECTED_SITE" ]]; then
-        read -p "Site does not appear to be available. Remove anyways? (Y/n) " remove
-        if [[ "$remove" != "n" && "$remove" != "N" ]]; then
-            rm -f "$NGINX_SITES_ENABLED/$SELECTED_SITE"
-            echo "Site '$SELECTED_SITE' was disabled."
-            ngx_reload
-        else
-            echo "Site '$SELECTED_SITE' was not disabled."
-        fi
+    def initialize(hash)
+        @path = hash[:path] # Path to the site file.
+        @filename = hash[:filename] # Site file basename.
+        @name = hash[:name] # Site name w/o extension.
+    end
+
+    # Return true if the site is enabled and false otherwise.
+    def enabled?
+        sa = "#{$sites_available}/#{@filename}"
+        se = "#{$sites_enabled}/#{@filename}"
+        return File.symlink?(se) && File.readlink(se) == sa
+    end
+
+    # Return true if site exists and false otherwise.
+    def exist?
+        return self.class.exist?(self.name)
+    end
+
+    # Return true if the site file is a symbolic link and false otherwise.
+    def symlink?
+        return File.symlink?("#{$sites_available}/#{@filename}")
+    end
+
+    # Return the real path for the site if it is a symbolic link
+    # or an empty string otherwise.
+    def symlink
+        return self.symlink? ?
+            File.readlink("#{$sites_available}/#{@filename}") : ''
+    end
+end
+
+# Show a table with site info.
+def site_info_table
+    result = []
+
+    # Headers for each column.
+    headers = {
+        index: '#',
+        name: 'Name',
+        enabled: 'Status',
+        is_link: 'Link',
+        links: 'Links',
+    }
+
+    # Max length for each column.
+    max = {
+        index: headers[:index].length,
+        name: headers[:name].length,
+        enabled: headers[:enabled].length + 2,
+        is_link: headers[:is_link].length,
+        links: headers[:links].length,
+    }
+
+    # Get the info array and update max lengths.
+    Site.all.each_with_index do |site, index|
+        max[:index] = index.to_s.length if index.to_s.length > max[:index]
+        max[:name] = site.name.length if site.name.length > max[:name]
+    end
+
+    # Print headers.
+    hindex = headers[:index].ljust(max[:index])
+    hname = headers[:name].ljust(max[:name])
+    henabled = headers[:enabled].ljust(max[:enabled])
+    hislink = headers[:is_link]
+    result << " #{hindex}   #{hname}   #{henabled}   #{hislink} " \
+        # .ljust(`tput cols`.to_i) # Use this for a full width underline.
+        .bold.yellow.underlined
+
+    # Print each site.
+    Site.all.each_with_index do |site, index|
+        index = index.to_s.ljust(max[:index]).bold
+        name = site.name.ljust(max[:name]).cyan
+        # enabled = '' # This doesn't seem to be needed in Ruby.
+        if site.enabled? then
+            enabled = 'Enabled'.ljust(max[:enabled]).green
+        elsif
+            enabled = 'Disabled'.ljust(max[:enabled]).red
+        end
+        link = site.symlink? ? 'Yes'.green : 'No'.red
+        result << " #{index}   #{name}   #{enabled}   #{link}"
+    end
+
+    return result * "\n"
+end
+
+# Exit with error.
+def ngx_error(message, code=1)
+    $stderr.puts "ERROR: ".bold.red + message
+    exit code
+end
+
+# Reload configuration
+def ngx_reload
+    print 'Reload Nginx configuration? (Y/n) '
+    if !['no', 'n', 'false', '0'].include?($stdin.gets.strip.downcase) then
+        puts 'Reloading Nginx. You may be prompted for password by sudo.'
+        `sudo nginx -s reload`
+    end
+end
+
+# Select a site and return its path.
+def select_site
+    puts site_info_table
+    sites = Site.all
+    index = nil
+    loop do
+        print 'Input the number of the desired site: '
+        begin
+            index = $stdin.gets.strip
+        rescue Interrupt
+            puts
+            exit 0
+        end
+        break if index.is_i? && index.to_i < sites.length
+    end
+    return sites[index.to_i]
+end
+
+# Enable a site.
+def enable_site(site)
+    ngx_error("Site '#{site.name.bold}' does not exist.") if not site.exist?
+    ngx_error("Site '#{site.name.bold}' is already enabled.") if site.enabled?
+    sa = "#{$sites_available}/#{site.filename}"
+    se = "#{$sites_enabled}/#{site.filename}"
+    File.symlink(sa, se)
+    puts "Site '#{site.name.bold}' enabled."
+end
+
+# Disable a site.
+def disable_site(site)
+    ngx_error("Site '#{site.name.bold}' does not exist.") if not site.exist?
+    ngx_error("Site '#{site.name.bold}' is not enabled.") if not site.enabled?
+    File.delete("#{$sites_enabled}/#{site.filename}")
+    puts "Site '#{site.name.bold}' disabled."
+end
+
+# Install a site to sites-enabled.
+def add_site(path)
+    if path == nil then
+        ngx_error 'Specify a file to install.'
+    end
+    print "Name the site: [#{path.strip_ext}] "
+    name = $stdin.gets.strip
+    name = name == '' ? path.strip_ext : name
+    ngx_error "Site '#{name}' already exists." if Site.exist?(name)
+    original_path = File.expand_path(path)
+    install_path = "#{$sites_available}/#{name}#{$file_ext}"
+    print "Symbolic link (YES) or hard copy (no)? "
+    link = !['no', 'n', 'false', '0'].include?($stdin.gets.strip.downcase)
+    if link then
+        File.symlink(original_path, install_path)
+        puts "Site '#{name.bold}' added as symlink."
     else
-        rm -f "$NGINX_SITES_ENABLED/$SELECTED_SITE"
-        echo "Site '$SELECTED_SITE' was disabled."
+        FileUtils.cp(original_path, install_path)
+        puts "Site '#{name.bold}' added as hard copy."
+    end
+end
+
+# Remove a site from sites-available if it is not enabled.
+def remove_site(site)
+    ngx_error("Site '#{site.name.bold}' does not exist.") if not site.exist?
+    ngx_error("Site '#{site.name.bold}' is enabled. Disable it first.") if site.enabled?
+    File.delete(site.path)
+    puts "Site '#{site.name.bold}' removed."
+end
+
+# Get the path of the selected site.
+def site_path(site)
+    ngx_error("Site '#{site.name.bold}' does not exist.") if not site.exist?
+    puts site.path
+end
+
+def usage
+    return [
+        "Usage: #{File.basename($0).bold} <command> [args] - Manage Nginx sites.",
+        "Commands:",
+        "    <enable>   [site]  Enable a site.",
+        "    <disable>  [site]  Disable a site.",
+        "    <add>      [site]  Add a new site.",
+        "    <remove>   [site]  Remove a site.",
+        "    <path>     [site]  Print a site's path.",
+        # "    <create>   [site]  Create a new site. - Not implemented.",
+        # "    <info>     [site]  Get site info. - Not implemented.",
+        "    <list>             List all sites.",
+        "    <help>             Display this message."
+    ] * "\n"
+end
+
+def main
+    command, *args = ARGV
+    case command
+    when 'enable', 'e'
+        enable_site(args[0] != nil ? Site.from_name(args[0]) : select_site)
         ngx_reload
-    fi
-}
-
-ngx_add_site() {
-    [[ ! "$SELECTED_SITE" ]] &&
-        ngx_error "Specify a site config file to add."
-    [[ ! -e "$SELECTED_SITE" ]] &&
-        ngx_error "File does not exist."
-
-    SITEFILE=$(realpath $SELECTED_SITE)
-    BASENAME=$(basename $SELECTED_SITE)
-
-    [[ -e "$NGINX_SITES_AVAILABLE/$BASENAME" ]] &&
-        ngx_error "A site with that name already exists."
-
-    read -p "Should the file be symbolically linked (If not, it will be hard copied)? (Y/n) " copy
-
-    read -p "How should the site be named? [$BASENAME] " GIVEN_NAME
-    [[ $GIVEN_NAME != "" ]] &&
-        BASENAME=$GIVEN_NAME
-
-    if [[ "$copy" != "n" && "$copy" != "N" ]]; then
-        ln -sf "$SITEFILE" "$NGINX_SITES_AVAILABLE/$BASENAME"
-        echo "Site '$BASENAME' added successfully (Using symbolic link)."
+    when 'disable', 'd'
+        disable_site(args[0] != nil ? Site.from_name(args[0]) : select_site)
+        ngx_reload
+    when 'add', 'a'
+        add_site(args[0])
+    when 'remove', 'r'
+        remove_site(args[0] != nil ? Site.from_name(args[0]) : select_site)
+    when 'path', 'p'
+        site_path(args[0] != nil ? Site.from_name(args[0]) : select_site)
+    when 'list', 'l'
+        puts site_info_table
     else
-        cp "$SITEFILE" "$NGINX_SITES_AVAILABLE/$BASENAME"
-        echo "Site '$BASENAME' added successfully (Using hard copy)."
-    fi
-}
+        puts usage
+    end
+end
 
-ngx_remove_site() {
-    [[ ! "$SELECTED_SITE" ]] &&
-        ngx_select_site "not_enabled"
-
-    [[ ! -e "$NGINX_SITES_AVAILABLE/$SELECTED_SITE" && ! -L "$NGINX_SITES_AVAILABLE/$SELECTED_SITE" ]] &&
-        ngx_error "Site does not appear to exist."
-    [[ -e "$NGINX_SITES_ENABLED/$SELECTED_SITE" || -L "$NGINX_SITES_ENABLED/$SELECTED_SITE" ]] &&
-        ngx_error "Site appears to be enabled. It must first be disabled."
-
-    rm "$NGINX_SITES_AVAILABLE/$SELECTED_SITE"
-    echo "Site '$SELECTED_SITE' removed successfully."
-}
-
-ngx_list_site() {
-    echo "Available sites"
-    ngx_sites "available"
-    echo "Enabled Sites"
-    ngx_sites "enabled"
-}
-
-##
-# Helper Functions
-##
-
-# realpath() {
-#     OURPWD=$PWD
-#     cd "$(dirname "$1")"
-#     LINK=$(readlink "$(basename "$1")")
-#     while [ "$LINK" ]; do
-#         cd "$(dirname "$LINK")"
-#         LINK=$(readlink "$(basename "$1")")
-#     done
-#     REALPATH="$PWD/$(basename "$1")"
-#     cd "$OURPWD"
-#     echo "$REALPATH"
-# }
-
-ngx_select_site() {
-    sites_avail=($NGINX_SITES_AVAILABLE/*)
-    sa="${sites_avail[@]##*/}"
-    sites_en=($NGINX_SITES_ENABLED/*)
-    se="${sites_en[@]##*/}"
-
-    case "$1" in
-        not_enabled) sites=$(comm -13 <(printf "%s\n" $se) <(printf "%s\n" $sa));;
-        is_enabled) sites=$(comm -12 <(printf "%s\n" $se) <(printf "%s\n" $sa));;
-    esac
-
-    ngx_prompt "$sites"
-}
-
-ngx_prompt() {
-    sites=($1)
-    i=0
-
-    echo "SELECT A WEBSITE:"
-    for site in ${sites[@]}; do
-        echo -e "$i:\t${sites[$i]}"
-        ((i++))
-    done
-
-    read -p "Enter number for website: " i
-    SELECTED_SITE="${sites[$i]}"
-}
-
-ngx_sites() {
-    case "$1" in
-        available) dir="$NGINX_SITES_AVAILABLE";;
-        enabled) dir="$NGINX_SITES_ENABLED";;
-    esac
-
-    for file in $dir/*; do
-        echo -e "\t${file#*$dir/}"
-    done
-}
-
-ngx_reload() {
-    read -p "Would you like to reload the Nginx configuration now? (Y/n) " reload
-    [[ "$reload" != "n" && "$reload" != "N" ]] && sudo nginx -s reload
-}
-
-ngx_error() {
-    echo -e "${0##*/}: ERROR: $1"
-    [[ "$2" ]] && ngx_help
-    exit 1
-}
-
-ngx_help() {
-    echo "Usage: ${0##*/} [options]"
-    echo "Options:"
-    echo -e "\t[e|enable]  <site>   Enable site"
-    echo -e "\t[d|disable] <site>   Disable site"
-    echo -e "\t[a|add]     <site>   Add site"
-    echo -e "\t[r|remove]  <site>   Remove site"
-    echo -e "\t[l|list]             List sites"
-    echo -e "\t[h|help]             Display help"
-    echo -e "\n\tIf <site> is left out a selection of options will be presented."
-    echo -e "\tIt is assumed you are using the default sites-enabled and"
-    echo -e "\tsites-disabled located at $NGINX_CONF_DIR."
-}
-
-##
-# Core Piece
-##
-
-case "$1" in
-    e|enable)    ngx_enable_site;;
-    d|disable)   ngx_disable_site;;
-    a|add)       ngx_add_site;;
-    r|remove)    ngx_remove_site;;
-    l|list)      ngx_list_site;;
-    h|help)      ngx_help;;
-    *)      ngx_error "No Options Selected" 1; ngx_help;;
-esac
+# Run main
+main

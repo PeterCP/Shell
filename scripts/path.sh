@@ -1,10 +1,15 @@
 ### All PATH extensions should go here
 
-# Add RVM to PATH for scripting
-export PATH="$PATH:$HOME/.rvm/bin"
+# Note that the last entry in this file will be the first entry in
+# the PATH variable.
+
+# Helper function.
+add_to_path() {
+    export PATH="$@:$PATH"
+}
 
 # Add PHP 7 Composer to PATH
-export PATH="~/.composer/vendor/bin:$PATH"
+add_to_path "~/.composer/vendor/bin"
 
-# Setting PATH for Python 3.5
-export PATH="/Library/Frameworks/Python.framework/Versions/3.5/bin:${PATH}"
+# Add local bin directory to path.
+add_to_path "~/.bash/bin"

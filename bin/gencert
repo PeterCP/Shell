@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Local constants
-INSTALL_DIR='/usr/local/var/ssl' # Current directory
+# INSTALL_DIR='/usr/local/var/ssl'
+INSTALL_DIR='.' # Current directory
 DAYS="3650" # 10 year
 
 # Script accepts a single argument, the FQDN for the cert
@@ -10,6 +11,13 @@ if [ -z "$DOMAIN" ]; then
     echo "Usage: $(basename $0) <domain>"
     exit 11
 fi
+
+# Remove '*' wildcard from file name.
+FILENAME="${DOMAIN/\*/%}"
+
+read -p "How should the files be named? [$FILENAME] " name
+[[ "$name" ]] &&
+    FILENAME="$name"
 
 # Certificate details
 subj="
@@ -29,5 +37,5 @@ openssl req \
     -days "$DAYS" \
     -newkey rsa:2048 \
     -subj "$(echo -n "$subj" | tr "\n" "/")" \
-    -keyout "$INSTALL_DIR/$DOMAIN.key" \
-    -out "$INSTALL_DIR/$DOMAIN.crt"
+    -keyout "$INSTALL_DIR/$FILENAME.key" \
+    -out "$INSTALL_DIR/$FILENAME.crt"

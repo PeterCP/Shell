@@ -38,4 +38,5 @@ _project_autocomplete() {
     COMPREPLY=( $(compgen -W "$opts" -- "${COMP_WORDS[COMP_CWORD]}") )
     return 0
 }
+
 complete -o nospace -F _project_autocomplete project
