@@ -25,7 +25,7 @@ C=MX
 ST=Yucatan
 O=PeterCP Software
 localityName=Merida
-commonName=$DOMAIN
+commonName=*.$DOMAIN
 organizationalUnitName=Local Development
 emailAddress=pacp95@gmail.com
 "

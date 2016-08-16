@@ -1,6 +1,10 @@
 # VirtualEnvWrapper initialization.
-[[ "/usr/local/bin/virtualenvwrapper_lazy.sh" ]] &&
+[ -f "/usr/local/bin/virtualenvwrapper_lazy.sh" ] &&
     source "/usr/local/bin/virtualenvwrapper_lazy.sh"
+
+# Load homebrew bash completion.
+[ -f "$(brew --prefix)/etc/bash_completion" ] &&
+    source "$(brew --prefix)/etc/bash_completion"
 
 # Helper to load scripts
 _load_script() {

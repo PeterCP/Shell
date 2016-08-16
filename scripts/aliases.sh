@@ -14,6 +14,9 @@ lm(){
 # Alias for 'brew services'
 alias service="brew services"
 
+# Alias for 'php artisan'
+alias art="php artisan"
+
 # Alias for digging the external IP.
 alias externalip="dig +short myip.opendns.com @resolver1.opendns.com"
 
