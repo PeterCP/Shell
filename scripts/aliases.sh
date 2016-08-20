@@ -11,6 +11,9 @@ lm(){
     ll "$@" | more
 }
 
+# Alias to find active processes.
+alias fproc="ps uax | grep -v grep | grep"
+
 # Alias for 'brew services'
 alias service="brew services"
 

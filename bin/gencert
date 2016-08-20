@@ -3,7 +3,7 @@
 # Local constants
 # INSTALL_DIR='/usr/local/var/ssl'
 INSTALL_DIR='.' # Current directory
-DAYS="3650" # 10 year
+DAYS="3652" # 10 year
 
 # Script accepts a single argument, the FQDN for the cert
 DOMAIN="$1"
@@ -15,7 +15,7 @@ fi
 # Remove '*' wildcard from file name.
 FILENAME="${DOMAIN/\*/%}"
 
-read -p "How should the files be named? [$FILENAME] " name
+read -p "How should the files be named? [$FILENAME.*] " name
 [[ "$name" ]] &&
     FILENAME="$name"
 
@@ -23,9 +23,9 @@ read -p "How should the files be named? [$FILENAME] " name
 subj="
 C=MX
 ST=Yucatan
-O=PeterCP Software
+O=PeterCP
 localityName=Merida
-commonName=*.$DOMAIN
+commonName=$DOMAIN
 organizationalUnitName=Local Development
 emailAddress=pacp95@gmail.com
 "
