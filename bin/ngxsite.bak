@@ -38,24 +38,6 @@ class Site
         return result
     end
 
-    # Get a list of enabled sites only.
-    def self.enabled
-        result = []
-        self.all.each do |site|
-            result << site if site.enabled?
-        end
-        return result
-    end
-
-    # Get a list of disabled sites only.
-    def self.disabled
-        result = []
-        self.all.each do |site|
-            result << site if !site.enabled?
-        end
-        return result
-    end
-
     # Return true if a site exists with that name and false otherwise.
     def self.exist?(name)
         self.all.each do |site|
@@ -257,26 +239,6 @@ def site_path(site)
     puts site.path
 end
 
-# Generate bash autocomplete options.
-def command_autocomplete(args)
-    commands = %w[ enable disable add remove path list help ]
-    command, *params = args
-    if !commands.include?(command) then
-        return commands
-    else
-        # Without filtering sites based on command
-        if %w[ list help ].include?(command) then
-            return []
-        else
-            site_names = []
-            Site.all.each do |site|
-                site_names << site.name
-            end
-            return site_names
-        end
-    end
-end
-
 def usage
     return [
         "Usage: #{File.basename($0).bold} <command> [args] - Manage Nginx sites.",
@@ -310,8 +272,6 @@ def main
         site_path(args[0] != nil ? Site.from_name(args[0]) : select_site)
     when 'list', 'l'
         puts site_info_table
-    when '__autocomplete'
-        puts command_autocomplete(args)
     else
         puts usage
     end

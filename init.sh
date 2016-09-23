@@ -19,5 +19,6 @@ _load_script "aliases.sh"
 _load_script "cd.sh"
 _load_script "workspace.sh"
 _load_script "project.sh"
+_load_script "ngxsite.sh"
 
 unset _load_script # Unset helper
